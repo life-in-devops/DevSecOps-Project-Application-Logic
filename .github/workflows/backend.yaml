@@ -66,9 +66,9 @@ jobs:
       - name: Checkout manifests repo
         uses: actions/checkout@v4
         with:
-          repository: your-username/your-k8s-manifests-repo   # <-- replace with your actual repo
-          token: ${{ secrets.TOKEN }}                         # <-- needs a PAT secret
-          path: manifests                                     # checkout to 'manifests/' dir
+          repository: life-in-devops/DevSecOps-Project-Ops-Repository
+          token: ${{ secrets.TOKEN }}
+          path: manifests
 
       - name: Setup Git config
         run: |
@@ -81,16 +81,14 @@ jobs:
         run: |
           NEW_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
 
-          # Update the image in your manifests repo
-          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" manifests/kubernetes/deployment.yaml
+          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" manifests/develop/deployment.yaml
 
-          # Verify update
-          echo "Updated deployment to use image: ${NEW_IMAGE}"
-          grep -A 1 "image:" manifests/kubernetes/deployment.yaml
+          echo "✅ Updated deployment.yaml to use image: ${NEW_IMAGE}"
+          grep -A 1 "image:" manifests/develop/deployment.yaml
 
       - name: Commit and push manifests update
         run: |
           cd manifests
-          git add kubernetes/deployment.yaml
+          git add develop/deployment.yaml
           git commit -m "Update K8s manifest with new backend image: ${IMAGE_TAG} [skip ci]" || echo "No changes to commit"
           git push
