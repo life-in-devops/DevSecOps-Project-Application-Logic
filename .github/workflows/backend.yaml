@@ -1,0 +1,96 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'          # Trigger only on backend changes
+
+jobs:
+  docker:
+    name: Build & Push Docker Image to ECR
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      IMAGE_REPO_NAME: ${{ secrets.ECR_REPO_NAME }}
+    outputs:
+      image_tag: ${{ steps.set_output.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_REPO_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            latest
+
+      - name: Build & push Docker image to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend                  # <--- build context is backend folder
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Set image tag output
+        id: set_output
+        run: echo "image_tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+  # update-k8s:
+  #   name: Update Kubernetes Deployment
+  #   runs-on: ubuntu-latest
+  #   needs: [docker]
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   env:
+  #     AWS_REGION: ${{ secrets.AWS_REGION }}
+  #     ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+  #     IMAGE_REPO_NAME: ${{ secrets.ECR_REPO_NAME }}
+  #   steps:
+  #     - name: Checkout manifests repo
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: your-username/your-k8s-manifests-repo   # <-- replace with your actual repo
+  #         token: ${{ secrets.TOKEN }}                         # <-- needs a PAT secret
+  #         path: manifests                                     # checkout to 'manifests/' dir
+
+  #     - name: Setup Git config
+  #       run: |
+  #         git config user.name "GitHub Actions"
+  #         git config user.email "actions@github.com"
+
+  #     - name: Update Kubernetes deployment file
+  #       env:
+  #         IMAGE_TAG: sha-${{ github.sha }}
+  #       run: |
+  #         NEW_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+
+  #         # Update the image in your manifests repo
+  #         sed -i "s|image: .*|image: ${NEW_IMAGE}|g" manifests/kubernetes/deployment.yaml
+
+  #         # Verify update
+  #         echo "Updated deployment to use image: ${NEW_IMAGE}"
+  #         grep -A 1 "image:" manifests/kubernetes/deployment.yaml
+
+  #     - name: Commit and push manifests update
+  #       run: |
+  #         cd manifests
+  #         git add kubernetes/deployment.yaml
+  #         git commit -m "Update K8s manifest with new backend image: ${IMAGE_TAG} [skip ci]" || echo "No changes to commit"
+  #         git push
