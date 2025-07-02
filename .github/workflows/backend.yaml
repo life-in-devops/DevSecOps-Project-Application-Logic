@@ -72,6 +72,7 @@ jobs:
 
       - name: Setup Git config
         run: |
+          cd manifests
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
