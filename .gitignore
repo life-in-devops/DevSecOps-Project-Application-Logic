@@ -1,0 +1,16 @@
+# Ignore node_modules everywhere in the repo
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore dotenv files (if you ever add one)
+.env
+
+# Ignore OS or IDE files
+.DS_Store
+*.swp
+
+# Ignore build artifacts (just in case)
+dist/
+build/
