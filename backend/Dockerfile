@@ -13,7 +13,7 @@ RUN npm install
 # Copy the rest of your application code
 COPY . .
 
-# Expose port 5000 (Express server port)
+# Expose port 5000
 EXPOSE 5000
 
 # Start the application
