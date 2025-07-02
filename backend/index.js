@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
+const pool = new Pool({   //db creds call
   host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER,
